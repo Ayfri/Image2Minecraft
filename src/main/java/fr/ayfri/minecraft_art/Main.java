@@ -3,12 +3,12 @@ package fr.ayfri.minecraft_art;
 import fr.ayfri.minecraft_art.buttons.GenerateButton;
 import fr.ayfri.minecraft_art.buttons.SaveButton;
 import fr.ayfri.minecraft_art.buttons.SelectImageButton;
-import processing.awt.PGraphicsJava2D;
+import fr.ayfri.minecraft_art.gui.Gui;
+import fr.ayfri.minecraft_art.rendering.DrawZone;
 import processing.core.PApplet;
 import processing.core.PGraphics;
 import processing.core.PImage;
 import processing.event.MouseEvent;
-import processing.opengl.PGraphicsOpenGL;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -18,6 +18,7 @@ public class Main extends PApplet {
 	private TextureManager textureManager;
 	private Gui gui;
 	public static final HashMap<String, PImage> blocks = new HashMap<>();
+	//	public PShader shader;
 	public PGraphics output;
 	public PImage inputImage = null;
 	public File input;
@@ -32,10 +33,12 @@ public class Main extends PApplet {
 		System.out.println("Starting");
 		size(1400, 700);
 		registerMethod("mouseEvent", this);
+		registerMethod("pre", this);
 		textureManager = new TextureManager(this);
 	}
 	
 	public void setup() {
+//		shader = loadShader("src\\main\\resources\\vertex.glsl");
 		input = new File("src\\main\\resources\\outputColor.png");
 		output = createGraphics(16, 16);
 		
@@ -55,7 +58,7 @@ public class Main extends PApplet {
 		if (input.exists()) {
 			inputImage = loadImage(input.getAbsolutePath());
 		}
-		frame.setName("Image2Minecraft by Ayfri");
+		surface.setTitle("Image2Minecraft by Ayfri");
 		System.out.println("Init ended");
 	}
 	
@@ -71,6 +74,12 @@ public class Main extends PApplet {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public void pre() {
+		gui.getText("size").setText("Size : " + input.length() / (1024) + " KB");
+		gui.getText("width").setText("Width : " + inputImage.width + " px");
+		gui.getText("height").setText("Height : " + inputImage.height + " px");
 	}
 	
 	public void mouseEvent(MouseEvent event) {
@@ -101,18 +110,26 @@ public class Main extends PApplet {
 				x = 0;
 				y += ratio;
 			}
-			PImage color = Utils.getNearestResizedBlock(this, inputImage.pixels[i]);
+			PImage color = Utils.getNearestResizedBlock(gui.getOutputZone(), inputImage.pixels[i]);
 			output.image(color, x, y, ratio, ratio);
 			
 			loading.beginDraw();
 			loading.fill(100, 200, 255);
-			loading.rect(0,0, (float) i/inputImage.pixels.length * loading.width, loading.height);
+			loading.rect(0, 0, (float) i / inputImage.pixels.length * loading.width, loading.height);
 			loading.endDraw();
 			loading.show();
 		}
 		output.endDraw();
 		loading.clear();
 		System.out.println("Image proceeded");
+	}
+	
+	// This is for testing other way of rendering.
+	public void justPutInputInOutput() {
+		output = createGraphics(inputImage.width * 16, inputImage.height * 16);
+		output.beginDraw();
+		output.image(gui.getInputZone(), 0, 0);
+		output.endDraw();
 	}
 	
 	public void save() {

@@ -4,7 +4,6 @@ import fr.ayfri.minecraft_art.Main;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
-import java.io.File;
 
 public class SelectImageButton extends Button {
 	public SelectImageButton(final Main sketch) {
