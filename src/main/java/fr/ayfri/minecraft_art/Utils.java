@@ -1,19 +1,19 @@
 package fr.ayfri.minecraft_art;
 
-import processing.core.PApplet;
+import processing.core.PGraphics;
 import processing.core.PImage;
 import processing.core.PVector;
 
 public class Utils {
 	
-	public static PImage getNearestResizedBlock(Main sketch, int target) {
+	public static PImage getNearestResizedBlock(PGraphics graphics, int target) {
 		float min = Integer.MAX_VALUE;
 		PImage value = null;
 		float diff;
 		
 		for (final PImage block : Main.blocks.values()) {
-			int color = getAverageColor(sketch, block);
-			diff = getColorDistance(sketch, color, target);
+			int color = getAverageColor(graphics, block);
+			diff = getColorDistance(graphics, color, target);
 			if (diff < min) {
 				min = diff;
 				value = block;
@@ -23,21 +23,21 @@ public class Utils {
 		return value;
 	}
 	
-	public static float getColorDistance(PApplet sketch, int a, int b) {
-		PVector vector = new PVector(sketch.red(a), sketch.green(a), sketch.blue(a));
-		vector.sub(sketch.red(b), sketch.green(b), sketch.blue(b));
-		return vector.mag();
-	}
-	
-	public static int getAverageColor(PApplet sketch, PImage image) {
+	public static int getAverageColor(PGraphics graphics, PImage image) {
 		PVector average = new PVector();
 		image.loadPixels();
 		for (final int pixel : image.pixels) {
-			average.add(sketch.red(pixel), sketch.green(pixel), sketch.blue(pixel));
+			average.add(graphics.red(pixel), graphics.green(pixel), graphics.blue(pixel));
 		}
 		average.div(image.pixels.length);
 		
-		return sketch.color(average.x, average.y, average.z);
+		return graphics.color(average.x, average.y, average.z);
+	}
+	
+	public static float getColorDistance(PGraphics graphics, int a, int b) {
+		PVector vector = new PVector(graphics.red(a), graphics.green(a), graphics.blue(a));
+		vector.sub(graphics.red(b), graphics.green(b), graphics.blue(b));
+		return vector.mag();
 	}
 	
 	public static boolean isInRange(int value, int min, int max) {

@@ -19,7 +19,8 @@ public class TextureManager {
 		
 		final File[] files = file.listFiles();
 		for (final File blockFile : Objects.requireNonNull(files)) {
-			if (blockFile.getName().endsWith(".png") && !blockFile.getName().contains("top") && !blockFile.getName().contains("bottom")) {
+			if (blockFile.getName().endsWith(".png") && !blockFile.getName().contains("top") &&
+			    !blockFile.getName().contains("bottom")) {
 				final PImage image = getImage(blockFile.getName());
 				boolean process = true;
 				image.loadPixels();
@@ -28,8 +29,8 @@ public class TextureManager {
 					continue;
 				}
 				for (final int pixel : image.pixels) {
-					int averageColor = Utils.getAverageColor(sketch, image);
-					float colorDistance = Utils.getColorDistance(sketch, pixel, averageColor);
+					int averageColor = Utils.getAverageColor(sketch.g, image);
+					float colorDistance = Utils.getColorDistance(sketch.g, pixel, averageColor);
 					if (colorDistance > 130 || sketch.alpha(pixel) < 255) {
 						process = false;
 						break;

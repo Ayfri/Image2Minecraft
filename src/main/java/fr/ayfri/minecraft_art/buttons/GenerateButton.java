@@ -12,6 +12,7 @@ public class GenerateButton extends Button {
 	
 	@Override
 	public void onClick() {
+//		sketch.thread("justPutInputInOutput");
 		sketch.thread("generate");
 	}
 }
