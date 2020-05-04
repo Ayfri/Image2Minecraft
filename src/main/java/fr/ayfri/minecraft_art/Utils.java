@@ -32,7 +32,7 @@ public class Utils {
 		average.div(image.pixels.length);
 		
 		return graphics.color(average.x, average.y, average.z);
-	}
+	} // à aucun autre moment je change la couleur
 	
 	public static float getColorDistance(PGraphics graphics, int a, int b) {
 		PVector vector = new PVector(graphics.red(a), graphics.green(a), graphics.blue(a));
