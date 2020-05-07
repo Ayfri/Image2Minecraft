@@ -1,0 +1,1 @@
+java -jar "C:\\Users\\ayfri\\IdeaProjects\\processing\\minecraft-art\\build\\libs\\minecraft-art-0.2.jar"

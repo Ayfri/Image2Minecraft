@@ -38,8 +38,6 @@ public abstract class Button extends PGraphicsJava2D {
 		} else {
 			background(color);
 		}
-		stroke(0f);
-		strokeWeight(4f);
 		textSize(height / 4f);
 		textAlign(CENTER, CENTER);
 		fill(0);

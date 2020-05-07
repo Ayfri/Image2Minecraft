@@ -26,11 +26,12 @@ public class DrawZone extends PGraphicsJava2D {
 	}
 	
 	public void draw(PImage renderer) {
+		noSmooth();
 		beginDraw();
 		strokeWeight(4);
 		background(0);
 		image(renderer, 0, 0, width, height);
-		noFill();
+		noStroke();
 		endDraw();
 		
 		sketch.image(this, x, y);

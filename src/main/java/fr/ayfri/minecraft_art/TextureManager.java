@@ -29,7 +29,7 @@ public class TextureManager {
 					continue;
 				}
 				for (final int pixel : image.pixels) {
-					int averageColor = Utils.getAverageColor(sketch.g, image);
+					int averageColor = Utils.getAverageColor( image);
 					float colorDistance = Utils.getColorDistance(sketch.g, pixel, averageColor);
 					if (colorDistance > 130 || sketch.alpha(pixel) < 255) {
 						process = false;

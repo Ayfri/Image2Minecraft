@@ -2,8 +2,8 @@ plugins {
 	id 'java'
 }
 
-group 'org.example'
-version '0.2'
+group 'fr.ayfri'
+version '0.3'
 
 repositories {
 	mavenCentral()
@@ -14,4 +14,12 @@ dependencies {
 	implementation group: 'org.processing', name: 'core', version: '3.3.6'
 	implementation "org.jogamp.gluegen:gluegen-rt-main:2.3.1"
 	implementation "org.jogamp.jogl:jogl-all-main:2.3.1"
+}
+
+jar {
+	manifest {
+		attributes(
+				'MainClass': 'fr.ayfri.minecraft_art.Main'
+		)
+	}
 }
