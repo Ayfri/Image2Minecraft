@@ -1,0 +1,14 @@
+# Gradle
+gradle
+.gradle
+
+# Intellij
+.idea
+
+# Build
+build/classes
+build/generated
+build/reports
+build/resources
+build/test-results
+build/tmp
