@@ -4,55 +4,56 @@ import processing.core.PImage;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.Objects;
+import java.io.IOException;
 
 public class TextureManager {
 	private final Main sketch;
+	public static final String[] EXCEPTIONS = { "top", "bottom", "brewing_stand", "cauldron", "hopper", "slab", "shulker", "anvil", "wheat" };
 	
-	public TextureManager(Main sketch) {
+	// todo Exceptions gérées par le JSON
+	public TextureManager(final Main sketch) {
 		this.sketch = sketch;
 	}
 	
-	public void init() throws FileNotFoundException {
-		String path = "src\\main\\resources\\blocks";
-		File file = new File(path);
+	public void init() throws IOException {
+		final File[] files = new File("blocks").listFiles();
 		
-		final File[] files = file.listFiles();
-		for (final File blockFile : Objects.requireNonNull(files)) {
-			if (blockFile.getName().endsWith(".png") && !blockFile.getName().contains("top") &&
-			    !blockFile.getName().contains("bottom")) {
-				final PImage image = getImage(blockFile.getName());
-				boolean process = true;
+		assert files != null;
+		for (final File blockFile : files) {
+			
+			if (blockFile.getName().endsWith(".png") && Utils.listNotContainsItem(EXCEPTIONS, blockFile.getName())) {
+				final PImage image = getImage(blockFile);
+				final int averageColor = Utils.getAverageColor(image);
+				boolean cancelRegister = false;
 				image.loadPixels();
 				
 				if (image.height != 16 || image.width != 16) {
 					continue;
 				}
+				
 				for (final int pixel : image.pixels) {
-					int averageColor = Utils.getAverageColor(sketch.g, image);
-					float colorDistance = Utils.getColorDistance(sketch.g, pixel, averageColor);
-					if (colorDistance > 130 || sketch.alpha(pixel) < 255) {
-						process = false;
+					final float colorDistance = Utils.getColorDistance(sketch.g, pixel, averageColor);
+					if (colorDistance > 60 || sketch.alpha(pixel) < 255) {
+						cancelRegister = true;
 						break;
 					}
 				}
 				
-				if (!process) {
+				if (cancelRegister) {
 					continue;
 				}
-				Main.blocks.put(blockFile.getName(), image);
+				
+				Main.BLOCKS.put(blockFile.getName(), image);
+				Main.COLORS_OF_BLOCKS.put(blockFile.getName(), averageColor);
 			}
 		}
 	}
 	
-	public PImage getImage(String name) throws FileNotFoundException {
-		String path = "src\\main\\resources\\blocks\\" + name;
-		File file = new File(path);
-		
+	public PImage getImage(final File file) throws FileNotFoundException {
 		if (file.exists()) {
-			return sketch.loadImage(path);
+			return sketch.loadImage(file.getPath());
 		} else {
-			throw new FileNotFoundException("File " + file.getAbsolutePath() + " not found.");
+			throw new FileNotFoundException("File " + file.getPath() + " not found.");
 		}
 	}
 }

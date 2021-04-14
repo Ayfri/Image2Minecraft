@@ -9,11 +9,11 @@ public class DrawZone extends PGraphicsJava2D {
 	protected final int x;
 	protected final int y;
 	
-	public DrawZone(Main sketch, int x, int y) {
+	public DrawZone(final Main sketch, final int x, final int y) {
 		this(sketch, x, y, 512, 512);
 	}
 	
-	public DrawZone(Main sketch, int x, int y, int width, int height) {
+	public DrawZone(final Main sketch, final int x, final int y, final int width, final int height) {
 		this.sketch = sketch;
 		this.width = width;
 		this.height = height;
@@ -25,12 +25,13 @@ public class DrawZone extends PGraphicsJava2D {
 //		setPath(sketch.savePath(""));
 	}
 	
-	public void draw(PImage renderer) {
+	public void draw(final PImage renderer) {
+		noSmooth();
 		beginDraw();
 		strokeWeight(4);
 		background(0);
 		image(renderer, 0, 0, width, height);
-		noFill();
+		noStroke();
 		endDraw();
 		
 		sketch.image(this, x, y);

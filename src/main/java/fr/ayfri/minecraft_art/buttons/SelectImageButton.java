@@ -13,8 +13,8 @@ public class SelectImageButton extends Button {
 	
 	@Override
 	public void onClick() {
-		JFileChooser fileChooser = new JFileChooser(FileSystemView.getFileSystemView().getParentDirectory(sketch.input));
-		int returnValue = fileChooser.showOpenDialog(null);
+		final JFileChooser fileChooser = new JFileChooser(FileSystemView.getFileSystemView().getParentDirectory(sketch.input));
+		final int returnValue = fileChooser.showOpenDialog(null);
 		
 		if (returnValue == JFileChooser.APPROVE_OPTION) {
 			sketch.input = fileChooser.getSelectedFile();

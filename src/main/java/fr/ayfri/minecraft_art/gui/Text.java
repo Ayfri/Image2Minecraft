@@ -8,8 +8,9 @@ public class Text extends PGraphicsJava2D {
 	private final int x;
 	private final int y;
 	private String text;
+	private float size;
 	
-	public Text(Main sketch, int x, int y, int width, int height) {
+	public Text(final Main sketch, final int x, final int y, final int width, final int height) {
 		this.width = width;
 		this.height = height;
 		this.sketch = sketch;
@@ -19,13 +20,14 @@ public class Text extends PGraphicsJava2D {
 		setParent(sketch);
 		setPrimary(false);
 		setSize(width, height);
+		size = height / 2f;
 	}
 	
 	public void draw() {
 		beginDraw();
 		strokeWeight(4);
 		background(color(255, 255, 255, 0));
-		textSize(height / 2f);
+		textSize(size);
 		textAlign(LEFT, CENTER);
 		fill(0);
 		text(text, 0, height / 2f);
@@ -38,7 +40,11 @@ public class Text extends PGraphicsJava2D {
 		return text;
 	}
 	
-	public void setText(final String text) {
-		this.text = text;
+	public void setText(final Object text) {
+		this.text = text.toString();
+	}
+	
+	public void setSize(final float size) {
+		this.size = size;
 	}
 }
