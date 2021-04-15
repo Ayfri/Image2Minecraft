@@ -86,6 +86,9 @@ public class Main extends PApplet {
 	}
 	
 	public void chooseFile(final File file) {
+		if (file == null) {
+			return;
+		}
 		this.inputImage = this.loadImage(file.getAbsolutePath());
 	}
 	
@@ -159,8 +162,11 @@ public class Main extends PApplet {
 		output.endDraw();
 	}
 	
-	public void save() {
-		output.save("files\\output.png");
+	public void save(final File file) {
+		if (file == null) {
+			return;
+		}
+		output.save(file.getAbsolutePath());
 		System.out.println("Image saved !");
 	}
 }
