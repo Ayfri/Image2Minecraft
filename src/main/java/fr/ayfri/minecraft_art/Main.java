@@ -9,8 +9,9 @@ import processing.event.MouseEvent;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.TreeMap;
 
 public class Main extends PApplet {
@@ -41,8 +42,8 @@ public class Main extends PApplet {
 	
 	@Override
 	public void setup() {
-//		shader = loadShader("src\\main\\resources\\vertex.glsl");
-		input = new File("files\\outputColor.png");
+		input = ResourceUtils.getLocalFile(Path.of("files/outputColor.png"));
+		assert input != null;
 		System.out.println(input.getAbsolutePath());
 		output = createGraphics(16, 16);
 		
@@ -62,7 +63,11 @@ public class Main extends PApplet {
 		inputImage.loadPixels();
 //		}
 		surface.setTitle("Image2Minecraft by Ayfri");
-		ResourceUtils.resetBlocks();
+		try {
+			ResourceUtils.resetBlocks();
+		} catch (final URISyntaxException | IOException e) {
+			e.printStackTrace();
+		}
 		System.out.println("Init ended");
 	}
 	
@@ -76,7 +81,7 @@ public class Main extends PApplet {
 		try {
 			textureManager.init();
 			System.out.println("Blocks loaded : " + BLOCKS.size());
-		} catch (final IOException e) {
+		} catch (final IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}
 	}

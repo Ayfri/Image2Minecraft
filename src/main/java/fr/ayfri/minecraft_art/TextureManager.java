@@ -5,6 +5,9 @@ import processing.core.PImage;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.util.Objects;
 
 public class TextureManager {
 	private final Main sketch;
@@ -15,12 +18,12 @@ public class TextureManager {
 		this.sketch = sketch;
 	}
 	
-	public void init() throws IOException {
-		final File[] files = new File("blocks").listFiles();
+	public void init() throws IOException, URISyntaxException {
+		final File blocks = ResourceUtils.getLocalFile(Path.of("./blocks"));
+		final File[] files = Objects.requireNonNull(blocks).listFiles();
 		
 		assert files != null;
 		for (final File blockFile : files) {
-			
 			if (blockFile.getName().endsWith(".png") && Utils.listNotContainsItem(EXCEPTIONS, blockFile.getName())) {
 				final PImage image = getImage(blockFile);
 				final int averageColor = Utils.getAverageColor(image);

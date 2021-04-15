@@ -40,7 +40,7 @@ public class Text extends PGraphicsJava2D {
 		return text;
 	}
 	
-	public void setText(final Object text) {
+	public void setText(final String text) {
 		this.text = text.toString();
 	}
 	
