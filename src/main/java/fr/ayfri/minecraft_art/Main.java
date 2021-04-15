@@ -10,7 +10,6 @@ import processing.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.TreeMap;
 
@@ -42,7 +41,7 @@ public class Main extends PApplet {
 	
 	@Override
 	public void setup() {
-		input = ResourceUtils.getLocalFile(Path.of("files/outputColor.png"));
+		input = ResourceUtils.getLocalFile("files/outputColor.png");
 		assert input != null;
 		System.out.println(input.getAbsolutePath());
 		output = createGraphics(16, 16);
@@ -84,6 +83,10 @@ public class Main extends PApplet {
 		} catch (final IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public void chooseFile(final File file) {
+		this.inputImage = this.loadImage(file.getAbsolutePath());
 	}
 	
 	public void pre() {
