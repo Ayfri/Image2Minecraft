@@ -11,7 +11,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 public class Utils {
-	
 	public static PImage getNearestResizedBlock(final PGraphics graphics, final int target) {
 		float min = Integer.MAX_VALUE;
 		PImage value = null;
