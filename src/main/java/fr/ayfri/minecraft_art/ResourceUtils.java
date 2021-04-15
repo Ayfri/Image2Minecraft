@@ -29,6 +29,10 @@ public class ResourceUtils {
 		}
 	}
 	
+	public static File getLocalFile(final String path) {
+		return getLocalFile(Path.of(path));
+	}
+	
 	public static File getLocalFile(final Path path) {
 		try {
 			assertFile(path);
@@ -37,6 +41,10 @@ public class ResourceUtils {
 			e.printStackTrace();
 		}
 		return null;
+	}
+	
+	public static boolean assertFile(final String path) throws URISyntaxException, IOException {
+		return assertFile(Path.of(path));
 	}
 	
 	public static boolean assertFile(final Path path) throws URISyntaxException, IOException {

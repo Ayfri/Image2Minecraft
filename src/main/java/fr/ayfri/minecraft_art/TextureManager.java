@@ -19,7 +19,7 @@ public class TextureManager {
 	}
 	
 	public void init() throws IOException, URISyntaxException {
-		final File blocks = ResourceUtils.getLocalFile(Path.of("./blocks"));
+		final File blocks = ResourceUtils.getLocalFile("./blocks");
 		final File[] files = Objects.requireNonNull(blocks).listFiles();
 		
 		assert files != null;
