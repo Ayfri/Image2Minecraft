@@ -33,11 +33,7 @@ public abstract class Button extends PGraphicsJava2D {
 	public void draw() {
 		hint(DISABLE_DEPTH_TEST);
 		beginDraw();
-		if (clicked) {
-			background(clickedColor);
-		} else {
-			background(color);
-		}
+		background(clicked ? clickedColor : color);
 		textSize(height / 4f);
 		textAlign(CENTER, CENTER);
 		fill(0);
@@ -46,6 +42,8 @@ public abstract class Button extends PGraphicsJava2D {
 		     height / 2f);
 		endDraw();
 		hint(ENABLE_DEPTH_TEST);
+		
+		if (sketch.mouseButton == 0) clicked = false;
 		
 		sketch.image(this, x, y);
 	}
@@ -63,6 +61,10 @@ public abstract class Button extends PGraphicsJava2D {
 	}
 	
 	public abstract void onClick();
+	
+	public void setClicked(final boolean clicked) {
+		this.clicked = clicked;
+	}
 	
 	public void setText(final String text) {
 		this.text = text;
