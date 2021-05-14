@@ -1,7 +1,6 @@
 package fr.ayfri.minecraft_art;
 
 import fr.ayfri.minecraft_art.gui.Gui;
-import fr.ayfri.minecraft_art.rendering.LoadingBar;
 import processing.core.PApplet;
 import processing.core.PGraphics;
 import processing.core.PImage;
@@ -11,18 +10,31 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.HashMap;
-import java.util.TreeMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class Main extends PApplet {
-	private TextureManager textureManager;
-	private Gui gui;
 	public static final HashMap<String, PImage> BLOCKS = new HashMap<>();
 	public static final HashMap<String, Integer> COLORS_OF_BLOCKS = new HashMap<>();
 	public static HashMap<String, Integer> blocksUsed = new HashMap<>();
+	public TextureManager textureManager;
+	public Gui gui;
 	//	public PShader shader;
 	public PGraphics output;
 	public PImage inputImage = null;
 	public File input;
+	
+	public ThreadPoolExecutor threadPool = new ThreadPoolExecutor(
+		Runtime.getRuntime().availableProcessors(),
+		Runtime.getRuntime().availableProcessors() * 2,
+		5,
+		TimeUnit.MINUTES,
+		new LinkedBlockingQueue<>()
+	);
 	
 	public static void main(final String[] args) {
 		final String[] processingArgs = { "Main" };
@@ -48,11 +60,10 @@ public class Main extends PApplet {
 		gui = new Gui(this);
 		gui.getSliders().get(0).setMax(20f);
 		
-		final Thread init = new Thread(this::init);
-		init.start();
+		final Future<?> init = threadPool.submit(this::init);
 		try {
-			init.join();
-		} catch (final InterruptedException e) {
+			init.get();
+		} catch (final InterruptedException | ExecutionException e) {
 			e.printStackTrace();
 		}
 
@@ -103,62 +114,10 @@ public class Main extends PApplet {
 	}
 	
 	public void mouseEvent(final MouseEvent event) {
-		final Thread t = new Thread() {
-			@Override
-			public void start() {
-				gui.mouseEvent(event);
-			}
-		};
-		t.start();
-	}
-	
-	public void generate() {
-		System.out.println((char) 27 + "[31mStarting Generate process. ");
-		final float ratio = gui.getSliders().get(0).getValue();
-//		final float ratio = .05f;
-		final int blockSize = 16;
-		final long start = System.currentTimeMillis();
-		final LoadingBar loading = gui.getLoadingBar();
-		final PImage resizedImage = inputImage.copy();
-		int x = -blockSize;
-		int y = 0;
-		
-		blocksUsed = new HashMap<>();
-		resizedImage.resize((int) (inputImage.width * ratio), (int) (inputImage.height * ratio));
-		resizedImage.loadPixels();
-		output = createGraphics(resizedImage.width * blockSize, resizedImage.height * blockSize);
-		System.out.println("Number of pixels : " + resizedImage.pixels.length);
-		
-		output.beginDraw();
-		for (int i = 0; i < resizedImage.pixels.length; i++) {
-			x += blockSize;
-			if (x >= resizedImage.width * blockSize) {
-				x = 0;
-				y += blockSize;
-			}
-			final PImage color = Utils.getNearestResizedBlock(gui.getOutputZone(), resizedImage.pixels[i]);
-			output.image(color, x, y, blockSize, blockSize);
-			
-			loading.setPercentage((int) PApplet.map(i, 0, resizedImage.pixels.length, 0, 100));
-			loading.draw();
-		}
-		output.endDraw();
-		loading.beginDraw();
-		loading.clear();
-		loading.endDraw();
-		System.out.println(System.currentTimeMillis() - start + "ms time took.");
-		System.out.println("Image proceeded");
-		new TreeMap<>(blocksUsed).forEach((key, value) -> System.out.println(key.substring(0, key.length() - 4) + " : " + value));
-	}
-	
-	/**
-	 * This is for testing other way of rendering.
-	 */
-	public void justPutInputInOutput() {
-		output = createGraphics(inputImage.width * 16, inputImage.height * 16);
-		output.beginDraw();
-		output.image(gui.getInputZone(), 0, 0);
-		output.endDraw();
+		threadPool.submit((Callable<Void>) () -> {
+			gui.mouseEvent(event);
+			return null;
+		});
 	}
 	
 	public void save(final File file) {

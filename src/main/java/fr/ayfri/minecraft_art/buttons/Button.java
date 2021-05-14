@@ -43,7 +43,9 @@ public abstract class Button extends PGraphicsJava2D {
 		endDraw();
 		hint(ENABLE_DEPTH_TEST);
 		
-		if (sketch.mouseButton == 0) clicked = false;
+		if (sketch.mouseButton == 0) {
+			clicked = false;
+		}
 		
 		sketch.image(this, x, y);
 	}

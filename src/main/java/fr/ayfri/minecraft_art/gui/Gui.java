@@ -49,11 +49,11 @@ public class Gui {
 		addText(new Text(sketch, sketch.width / 2 - 315, -22, 150, 80), "Input");
 		addText(new Text(sketch, sketch.width / 2 + 235, -22, 150, 80), "Output");
 	}
-
+	
 	public void addSlider(final Slider slider) {
 		sliders.add(slider);
 	}
-
+	
 	public void addText(final Text text, final String name) {
 		text.setText(name);
 		texts.put(name, text);

@@ -41,7 +41,7 @@ public class Text extends PGraphicsJava2D {
 	}
 	
 	public void setText(final String text) {
-		this.text = text.toString();
+		this.text = text;
 	}
 	
 	public void setSize(final float size) {
