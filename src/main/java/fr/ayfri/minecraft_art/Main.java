@@ -43,7 +43,6 @@ public class Main extends PApplet {
 	public void setup() {
 		input = ResourceUtils.getLocalFile("files/outputColor.png");
 		assert input != null;
-		System.out.println(input.getAbsolutePath());
 		output = createGraphics(16, 16);
 		
 		gui = new Gui(this);
