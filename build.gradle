@@ -4,7 +4,7 @@ plugins {
 }
 
 wrapper {
-	gradleVersion = '6.7'
+	gradleVersion = '6.8'
 }
 
 group 'fr.ayfri'
@@ -15,10 +15,9 @@ repositories {
 }
 
 dependencies {
-	testImplementation group: 'junit', name: 'junit', version: '4.13.2'
 	implementation group: 'org.processing', name: 'core', version: '3.3.7'
-	implementation "org.jogamp.gluegen:gluegen-rt-main:2.3.2"
-	implementation "org.jogamp.jogl:jogl-all-main:2.3.2"
+	implementation group: 'org.jogamp.gluegen', name: 'gluegen-rt-main', version: '2.3.2'
+	implementation group: 'org.jogamp.jogl', name: 'jogl-all-main', version: '2.3.2'
 }
 
 task archive(type: Zip) {
@@ -27,7 +26,7 @@ task archive(type: Zip) {
 
 jar {
 	manifest {
-		attributes 'Main-Class': 'fr.ayfri.minecraft_art.Main', 'Class-Path': 'core-3.3.7.jar'
+		attributes 'Main-Class': 'fr.ayfri.minecraft_art.Main'
 	}
 	from {
 		configurations.runtimeClasspath.collect {
