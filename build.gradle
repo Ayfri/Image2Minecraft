@@ -16,7 +16,7 @@ repositories {
 
 dependencies {
 	implementation group: 'org.processing', name: 'core', version: '3.3.7'
-	implementation group: 'org.jogamp.gluegen', name: 'gluegen-rt-main', version: '2.3.2'
+	implementation group: 'org.jogamp.gluegen', name: 'gluegen-rt-main', version: '2.6.0'
 	implementation group: 'org.jogamp.jogl', name: 'jogl-all-main', version: '2.3.2'
 }
 
