@@ -1,9 +1,10 @@
-# Gradle
-gradle
-.gradle
-
-# Intellij
+### Editors
 .idea
+.vscode
 
-# Build
+### Gradle
+.gradle
 build
+
+### Kotlin
+.kotlin
