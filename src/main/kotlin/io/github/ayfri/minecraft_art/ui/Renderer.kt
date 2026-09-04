@@ -27,7 +27,8 @@ interface Renderer {
 	fun polygon(points: FloatArray, color: Int)
 	fun text(value: String, x: Float, y: Float, style: TextStyle)
 	fun textWidth(value: String, style: TextStyle): Float
-	fun image(bitmap: Bitmap, rect: Rect, smooth: Boolean = true)
+	/** Draws [bitmap] into [rect], restricted to the pixel region [source] when given so a huge image only costs its visible part. */
+	fun image(bitmap: Bitmap, rect: Rect, source: Rect? = null, smooth: Boolean = true)
 	fun pushClip(rect: Rect)
 	fun popClip()
 

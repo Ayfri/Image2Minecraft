@@ -12,7 +12,6 @@ import processing.core.PConstants
 import processing.core.PFont
 import processing.core.PImage
 import java.awt.RenderingHints
-import java.util.IdentityHashMap
 
 /**
  * Processing implementation of [Renderer]. It is the only place in the UI layer aware of Processing types, so a
@@ -21,7 +20,13 @@ import java.util.IdentityHashMap
 class ProcessingRenderer(private val sketch: PApplet) : Renderer {
 	private val regular: PFont = sketch.createFont(FONT_REGULAR, FONT_RESOLUTION, true)
 	private val bold: PFont = sketch.createFont(FONT_BOLD, FONT_RESOLUTION, true)
-	private val textures = IdentityHashMap<Bitmap, CachedTexture>()
+	/**
+	 * Least recently used texture cache. [Bitmap] does not override `equals`, so the map already keys on identity, and
+	 * the bound matters because one full block output plus its mip levels holds hundreds of megabytes of pixels.
+	 */
+	private val textures = object : LinkedHashMap<Bitmap, CachedTexture>(16, 0.75f, true) {
+		override fun removeEldestEntry(eldest: Map.Entry<Bitmap, CachedTexture>) = size > TEXTURE_CACHE_LIMIT
+	}
 	private val clips = ArrayDeque<Rect>()
 
 	private val graphics get() = sketch.g
@@ -95,12 +100,23 @@ class ProcessingRenderer(private val sketch: PApplet) : Renderer {
 		return graphics.textWidth(value)
 	}
 
-	override fun image(bitmap: Bitmap, rect: Rect, smooth: Boolean) {
+	override fun image(bitmap: Bitmap, rect: Rect, source: Rect?, smooth: Boolean) {
 		val texture = textureOf(bitmap)
 		val interpolation = if (smooth) RenderingHints.VALUE_INTERPOLATION_BILINEAR else RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
 		val g2 = (graphics as? PGraphicsJava2D)?.g2
 		g2?.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interpolation)
-		graphics.image(texture, rect.x, rect.y, rect.width, rect.height)
+		if (source == null) graphics.image(texture, rect.x, rect.y, rect.width, rect.height)
+		else graphics.image(
+			texture,
+			rect.x,
+			rect.y,
+			rect.width,
+			rect.height,
+			source.x.toInt(),
+			source.y.toInt(),
+			source.right.toInt(),
+			source.bottom.toInt(),
+		)
 	}
 
 	override fun pushClip(rect: Rect) {
@@ -141,12 +157,10 @@ class ProcessingRenderer(private val sketch: PApplet) : Renderer {
 		val cached = textures[bitmap]
 		if (cached != null && cached.revision == bitmap.revision) return cached.image
 
-		val image = PImage(bitmap.width, bitmap.height, PConstants.ARGB)
-		bitmap.pixels.copyInto(image.pixels)
+		/** The `PImage` shares the bitmap array instead of copying it, which matters once an output reaches tens of megapixels. */
+		val image = PImage(bitmap.width, bitmap.height, bitmap.pixels, false, sketch, PConstants.ARGB, 1)
 		image.updatePixels()
 		textures[bitmap] = CachedTexture(image, bitmap.revision)
-		/** Bitmaps are recreated on every generation, so the cache would otherwise grow with each run. */
-		if (textures.size > TEXTURE_CACHE_LIMIT) textures.keys.firstOrNull { it !== bitmap }?.let(textures::remove)
 		return image
 	}
 
@@ -156,6 +170,6 @@ class ProcessingRenderer(private val sketch: PApplet) : Renderer {
 		const val FONT_REGULAR = "Segoe UI"
 		const val FONT_BOLD = "Segoe UI Semibold"
 		const val FONT_RESOLUTION = 48f
-		const val TEXTURE_CACHE_LIMIT = 24
+		const val TEXTURE_CACHE_LIMIT = 12
 	}
 }
