@@ -69,3 +69,11 @@ tasks.register<JavaExec>("bench") {
 	classpath = sourceSets["bench"].runtimeClasspath
 	jvmArgs("-XX:MaxRAMPercentage=70")
 }
+
+/** Timings for the display path, `gradlew blitBench`, no palette needed since it works on synthetic outputs. */
+tasks.register<JavaExec>("blitBench") {
+	group = "verification"
+	mainClass = "io.github.ayfri.minecraft_art.bench.BlitBenchmarkKt"
+	classpath = sourceSets["bench"].runtimeClasspath
+	jvmArgs("-XX:MaxRAMPercentage=70", "-Djava.awt.headless=true")
+}
