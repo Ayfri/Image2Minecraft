@@ -6,7 +6,7 @@ import kotlin.io.path.exists
 import kotlin.io.path.inputStream
 import kotlin.io.path.outputStream
 
-/** User preferences kept between runs, so the app reopens on the same version, ratio and palette filters. */
+/** User preferences kept between runs, so the app reopens on the same version, density and palette filters. */
 data object Settings {
 	private val properties = Properties()
 
@@ -14,9 +14,10 @@ data object Settings {
 		get() = properties.getProperty("version")
 		set(value) = set("version", value)
 
-	var blocksWide: Int
-		get() = properties.getProperty("blocksWide")?.toIntOrNull() ?: 128
-		set(value) = set("blocksWide", value.toString())
+	/** Source pixels that collapse into one block, so `1` keeps the image at its native size and `4` quarters each side. */
+	var pixelsPerBlock: Float
+		get() = properties.getProperty("pixelsPerBlock")?.toFloatOrNull() ?: 8f
+		set(value) = set("pixelsPerBlock", value.toString())
 
 	var dithering: Boolean
 		get() = properties.getProperty("dithering").toBoolean()

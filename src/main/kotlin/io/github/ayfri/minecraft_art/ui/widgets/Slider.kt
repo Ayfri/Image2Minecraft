@@ -7,6 +7,8 @@ import io.github.ayfri.minecraft_art.ui.Rect
 import io.github.ayfri.minecraft_art.ui.Renderer
 import io.github.ayfri.minecraft_art.ui.Theme
 import io.github.ayfri.minecraft_art.ui.Widget
+import kotlin.math.ln
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 /** Labelled slider, the label row sits above the track and the value is shown on the right of it. */
@@ -16,6 +18,8 @@ class Slider(
 	private val max: Float,
 	value: Float,
 	private val step: Float = 1f,
+	/** Spaces the track exponentially instead of linearly, so a ratio range keeps room for its small values. Needs a positive [min]. */
+	private val logarithmic: Boolean = false,
 	private val format: (Float) -> String = { it.roundToInt().toString() },
 	private val onChange: (Float) -> Unit = {},
 ) : Widget() {
@@ -30,7 +34,11 @@ class Slider(
 	override val capturing get() = held
 
 	private val track get() = Rect(bounds.x, bounds.bottom - 14f, bounds.width, 6f)
-	private val progress get() = ((value - min) / (max - min)).coerceIn(0f, 1f)
+	private val progress
+		get() = if (logarithmic) (ln(value / min) / ln(max / min)).coerceIn(0f, 1f) else ((value - min) / (max - min)).coerceIn(0f, 1f)
+
+	/** A fixed [step] is far too fine at the top of a logarithmic track, so the wheel moves by a share of the value instead. */
+	private val wheelStep get() = if (logarithmic) step * maxOf(1f, value / min) else step
 
 	private fun snap(raw: Float) = (Math.round(raw / step) * step).coerceIn(min, max)
 
@@ -71,7 +79,7 @@ class Slider(
 
 			PointerAction.WHEEL -> {
 				if (!hovered) return false
-				value -= event.scroll * step
+				value -= event.scroll * wheelStep
 				return true
 			}
 
@@ -81,6 +89,6 @@ class Slider(
 
 	private fun updateFrom(x: Float) {
 		val ratio = ((x - track.x) / track.width).coerceIn(0f, 1f)
-		value = min + (max - min) * ratio
+		value = if (logarithmic) min * (max / min).pow(ratio) else min + (max - min) * ratio
 	}
 }

@@ -6,7 +6,12 @@ import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.TimeSource
 
-data class GenerationSettings(val blocksWide: Int, val dithering: Boolean)
+data class GenerationSettings(val blocksWide: Int, val dithering: Boolean) {
+	companion object {
+		/** One generation of this width already holds a few hundred megabytes of pixels, so the UI never goes past it. */
+		const val MAX_BLOCKS_WIDE = 512
+	}
+}
 
 data class GenerationResult(
 	val image: Bitmap,

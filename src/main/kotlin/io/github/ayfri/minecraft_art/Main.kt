@@ -39,6 +39,7 @@ import processing.core.PApplet
 import processing.event.KeyEvent as ProcessingKeyEvent
 import processing.event.MouseEvent as ProcessingMouseEvent
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
@@ -91,8 +92,8 @@ class Main : PApplet() {
 	private val openButton = Button("Open", ButtonStyle.SECONDARY, Icon.FOLDER) { openImage() }
 	private val pasteButton = Button("Paste", ButtonStyle.SECONDARY, Icon.PASTE) { pasteImage() }
 	private val clearButton = Button("Clear", ButtonStyle.SECONDARY, Icon.TRASH) { clearImage() }
-	private val widthSlider = Slider("Width", 16f, 512f, Settings.blocksWide.toFloat(), 8f, { "${it.toInt()} blocks" }) {
-		Settings.blocksWide = it.toInt()
+	private val densitySlider = Slider("Pixel density", 1f, 64f, Settings.pixelsPerBlock, 0.25f, logarithmic = true, format = ::describeDensity) {
+		Settings.pixelsPerBlock = it
 	}
 	private val ditherToggle = Toggle("Dithering", Settings.dithering) { Settings.dithering = it }
 	private val tagToggles = BlockTag.entries.map { tag ->
@@ -131,7 +132,7 @@ class Main : PApplet() {
 		registerMethod("keyEvent", this)
 		Platform.onFileDropped(surface.native) { file -> submit { loadFile(file) } }
 
-		ui.add(versionDropdown, reloadButton, openButton, pasteButton, clearButton, widthSlider, ditherToggle)
+		ui.add(versionDropdown, reloadButton, openButton, pasteButton, clearButton, densitySlider, ditherToggle)
 		tagToggles.forEach(ui::add)
 		ui.add(generateButton, saveButton, copyButton, listButton, inputView, outputView)
 		ui.add(fitButton, pixelButton, gridButton, usageList, toasts)
@@ -191,7 +192,7 @@ class Main : PApplet() {
 
 		val toggleHeight = 26f
 		settingsCard.set(x, y, sidebarWidth, 122f + tagToggles.size * toggleHeight)
-		widthSlider.place(x + 12f, y + 28f, inner, 42f)
+		densitySlider.place(x + 12f, y + 28f, inner, 42f)
 		ditherToggle.place(x + 12f, y + 92f, inner, toggleHeight)
 		tagToggles.forEachIndexed { index, toggle -> toggle.place(x + 12f, y + 120f + index * toggleHeight, inner, toggleHeight) }
 		y = settingsCard.bottom + Theme.GAP
@@ -273,13 +274,16 @@ class Main : PApplet() {
 		return "${current.blocksWide} x ${current.blocksHigh} blocks - ${current.image.width} x ${current.image.height} px"
 	}
 
+	/** Blocks across the current source at the chosen density, clamped so no setting can ask for an image that will not fit. */
+	private fun blocksWide(image: Bitmap) =
+		(image.width / densitySlider.value).roundToInt().coerceIn(1, GenerationSettings.MAX_BLOCKS_WIDE)
+
 	private fun shortcutsHint(): String {
-		val estimate = source?.let { image ->
-			val blocks = widthSlider.value.toInt()
-			val high = (blocks / image.aspectRatio).roundToInt().coerceAtLeast(1)
-			"$blocks x $high blocks - ${blocks * BlockPalette.TEXTURE_SIZE} x ${high * BlockPalette.TEXTURE_SIZE} px"
-		}
-		return estimate ?: "Ctrl+O open - Ctrl+G generate - Ctrl+S save - Ctrl+C copy"
+		val image = source ?: return "Ctrl+O open - Ctrl+G generate - Ctrl+S save - Ctrl+C copy"
+		val blocks = blocksWide(image)
+		val high = (blocks / image.aspectRatio).roundToInt().coerceAtLeast(1)
+		val capped = if (blocks == GenerationSettings.MAX_BLOCKS_WIDE) " (capped)" else ""
+		return "$blocks x $high blocks$capped - ${blocks * BlockPalette.TEXTURE_SIZE} x ${high * BlockPalette.TEXTURE_SIZE} px"
 	}
 
 	private fun discoverVersions() {
@@ -383,7 +387,7 @@ class Main : PApplet() {
 		if (palette.size == 0) return toasts.show("No block palette loaded", ToastKind.WARNING)
 
 		submit {
-			val settings = GenerationSettings(widthSlider.value.toInt(), ditherToggle.checked)
+			val settings = GenerationSettings(blocksWide(image), ditherToggle.checked)
 			status = "Generating ${settings.blocksWide} blocks wide"
 			val generated = generator.generate(image, settings) { progress = it }
 			if (generated == null) {
@@ -498,6 +502,12 @@ class Main : PApplet() {
 		worker.shutdownNow()
 		super.exit()
 	}
+}
+
+/** Trims the trailing zero a quarter step leaves behind, so the slider reads `1.5` and `2` rather than `1.50` and `2.00`. */
+private fun describeDensity(value: Float): String {
+	val text = if (value % 1f == 0f) value.toInt().toString() else String.format(Locale.ROOT, "%.2f", value).trimEnd('0')
+	return "$text px per block"
 }
 
 /** Image passed on the command line, so the app can be associated with image files or started from a shortcut. */
