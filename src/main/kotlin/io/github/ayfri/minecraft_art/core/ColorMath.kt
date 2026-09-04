@@ -3,16 +3,18 @@ package io.github.ayfri.minecraft_art.core
 import kotlin.math.pow
 
 /** sRGB byte to linear light, looked up instead of computed since every input is already a 0..255 channel. */
-private val LINEAR = FloatArray(256) { index ->
+@PublishedApi
+internal val LINEAR = FloatArray(256) { index ->
 	val channel = index / 255f
 	if (channel <= 0.04045f) channel / 12.92f else ((channel + 0.055f) / 1.055f).pow(2.4f)
 }
 
 /**
- * Converts a sRGB color to Oklab and writes the L, a, b components at [offset]. Matching blocks in Oklab instead of
- * raw RGB keeps dark and saturated areas from collapsing onto the same block.
+ * Converts a sRGB color to Oklab and hands the L, a, b components to [use]. Matching blocks in Oklab instead of raw
+ * RGB keeps dark and saturated areas from collapsing onto the same block. Inline and callback based so the hot
+ * matching loop gets the three components in registers, a returned or filled array would allocate once per pixel.
  */
-fun oklab(red: Int, green: Int, blue: Int, out: FloatArray, offset: Int = 0) {
+inline fun <T> oklab(red: Int, green: Int, blue: Int, use: (luminance: Float, chromaA: Float, chromaB: Float) -> T): T {
 	val r = LINEAR[red]
 	val g = LINEAR[green]
 	val b = LINEAR[blue]
@@ -21,9 +23,11 @@ fun oklab(red: Int, green: Int, blue: Int, out: FloatArray, offset: Int = 0) {
 	val m = Math.cbrt((0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b).toDouble()).toFloat()
 	val s = Math.cbrt((0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b).toDouble()).toFloat()
 
-	out[offset] = 0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s
-	out[offset + 1] = 1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s
-	out[offset + 2] = 0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s
+	return use(
+		0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s,
+		1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s,
+		0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s,
+	)
 }
 
 /** Squared RGB distance, only used to measure how flat a texture is. */
@@ -35,3 +39,14 @@ fun rgbDistanceSquared(a: Int, b: Int): Int {
 }
 
 fun rgb(red: Int, green: Int, blue: Int) = 0xFF shl 24 or (red shl 16) or (green shl 8) or blue
+
+/** Index of the first entry of a sorted array that is not below [value], the starting point of an outwards scan. */
+fun FloatArray.binarySearchFloor(value: Float): Int {
+	var low = 0
+	var high = size
+	while (low < high) {
+		val middle = (low + high) ushr 1
+		if (this[middle] < value) low = middle + 1 else high = middle
+	}
+	return low
+}

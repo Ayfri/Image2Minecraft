@@ -27,12 +27,15 @@ class BlockTexture(
 
 /**
  * Holds every block face extracted from a Minecraft jar and answers nearest-color queries in Oklab. Filtering rebuilds
- * a flat float array so the matching loop stays cache friendly.
+ * three parallel float arrays sorted by luminance, which is what lets [nearest] prune instead of scanning everything.
  */
 class BlockPalette {
 	private var all = emptyList<BlockTexture>()
 	private var active = emptyList<BlockTexture>()
-	private var colors = FloatArray(0)
+	private var luminances = FloatArray(0)
+	private var chromaAs = FloatArray(0)
+	private var chromaBs = FloatArray(0)
+	private var order = IntArray(0)
 
 	var excluded: Set<BlockTag> = emptySet()
 		set(value) {
@@ -58,41 +61,54 @@ class BlockPalette {
 
 	fun texture(index: Int) = active[index]
 
-	/** Index of the closest block to the given sRGB color, or -1 when the palette is empty. */
-	fun nearest(red: Int, green: Int, blue: Int): Int {
-		if (active.isEmpty()) return -1
+	/**
+	 * Index of the closest block to the given sRGB color, or -1 when the palette is empty. Walks outwards from the
+	 * entry whose luminance matches and stops on each side as soon as the luminance gap alone exceeds the best
+	 * distance so far, which reaches the same block as a full scan while touching a fraction of the palette.
+	 */
+	fun nearest(red: Int, green: Int, blue: Int): Int = oklab(red, green, blue) { luminance, chromaA, chromaB ->
+		val luminances = luminances
+		val count = luminances.size
+		if (count == 0) return@oklab -1
 
-		val target = FloatArray(3)
-		oklab(red, green, blue, target)
-		val luminance = target[0]
-		val chromaA = target[1]
-		val chromaB = target[2]
-
-		var best = 0
+		var best = -1
 		var bestDistance = Float.MAX_VALUE
-		var index = 0
-		while (index < colors.size) {
-			val deltaL = colors[index] - luminance
-			val deltaA = colors[index + 1] - chromaA
-			val deltaB = colors[index + 2] - chromaB
+		var above = luminances.binarySearchFloor(luminance)
+		var below = above - 1
+
+		while (above < count) {
+			val deltaL = luminances[above] - luminance
+			if (deltaL * deltaL > bestDistance) break
+			val deltaA = chromaAs[above] - chromaA
+			val deltaB = chromaBs[above] - chromaB
 			val distance = deltaL * deltaL + deltaA * deltaA + deltaB * deltaB
-			if (distance < bestDistance) {
+			if (distance < bestDistance || (distance == bestDistance && order[above] < best)) {
 				bestDistance = distance
-				best = index / 3
+				best = order[above]
 			}
-			index += 3
+			above++
 		}
-		return best
+		while (below >= 0) {
+			val deltaL = luminances[below] - luminance
+			if (deltaL * deltaL > bestDistance) break
+			val deltaA = chromaAs[below] - chromaA
+			val deltaB = chromaBs[below] - chromaB
+			val distance = deltaL * deltaL + deltaA * deltaA + deltaB * deltaB
+			if (distance < bestDistance || (distance == bestDistance && order[below] < best)) {
+				bestDistance = distance
+				best = order[below]
+			}
+			below--
+		}
+		best
 	}
 
 	private fun rebuild() {
 		active = all.filter { texture -> texture.tags.none(excluded::contains) }
-		colors = FloatArray(active.size * 3)
-		active.forEachIndexed { index, texture ->
-			colors[index * 3] = texture.luminance
-			colors[index * 3 + 1] = texture.chromaA
-			colors[index * 3 + 2] = texture.chromaB
-		}
+		order = active.indices.sortedBy { active[it].luminance }.toIntArray()
+		luminances = FloatArray(order.size) { active[order[it]].luminance }
+		chromaAs = FloatArray(order.size) { active[order[it]].chromaA }
+		chromaBs = FloatArray(order.size) { active[order[it]].chromaB }
 	}
 
 	private fun read(file: File): BlockTexture? {
@@ -115,12 +131,11 @@ class BlockPalette {
 		val average = rgb(red / count, green / count, blue / count)
 
 		val spread = pixels.maxOf { rgbDistanceSquared(it, average) }
-		val lab = FloatArray(3)
-		oklab(red / count, green / count, blue / count, lab)
-
 		val name = file.name.removeSuffix(".png")
 		val tags = tagsOf(name) + if (spread > NOISE_THRESHOLD) setOf(BlockTag.NOISY) else emptySet()
-		return BlockTexture(name, pixels, average, lab[0], lab[1], lab[2], tags)
+		return oklab(red / count, green / count, blue / count) { luminance, chromaA, chromaB ->
+			BlockTexture(name, pixels, average, luminance, chromaA, chromaB, tags)
+		}
 	}
 
 	companion object {

@@ -1,6 +1,8 @@
 package io.github.ayfri.minecraft_art.core
 
 import io.github.ayfri.minecraft_art.ui.Bitmap
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicIntegerArray
 import java.util.stream.IntStream
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
@@ -53,11 +55,17 @@ class Generator(private val palette: BlockPalette) {
 		val indices = if (settings.dithering) matchDithered(scaled, width, height, onProgress)
 		else matchParallel(scaled, width, height, onProgress)
 
-		val usage = HashMap<String, Int>()
-		indices.forEach { index -> if (index >= 0) usage.merge(palette.texture(index).name, 1, Int::plus) }
-
 		val image = compose(indices, width, height)
-		return GenerationResult(image, width, height, usage, start.elapsedNow())
+		return GenerationResult(image, width, height, count(indices), start.elapsedNow())
+	}
+
+	/** Tally per palette index first, hashing a block name once per cell would dominate the whole generation. */
+	private fun count(indices: IntArray): Map<String, Int> {
+		val counts = IntArray(palette.size)
+		for (index in indices) if (index >= 0) counts[index]++
+		return buildMap {
+			counts.forEachIndexed { index, count -> if (count > 0) put(palette.texture(index).name, count) }
+		}
 	}
 
 	/** Box filter downscale, averaging every source pixel of a cell gives a far better match than sampling one. */
@@ -97,7 +105,7 @@ class Generator(private val palette: BlockPalette) {
 
 	private fun matchParallel(pixels: IntArray, width: Int, height: Int, onProgress: (Float) -> Unit): IntArray {
 		val indices = IntArray(width * height)
-		val done = java.util.concurrent.atomic.AtomicInteger()
+		val done = AtomicInteger()
 		IntStream.range(0, height).parallel().forEach { y ->
 			for (x in 0..<width) {
 				val pixel = pixels[y * width + x]
@@ -109,40 +117,71 @@ class Generator(private val palette: BlockPalette) {
 		return indices
 	}
 
-	/** Floyd-Steinberg error diffusion, sequential by nature since each pixel pushes its error to its neighbours. */
+	/**
+	 * Floyd-Steinberg error diffusion, spread over a row wavefront. Each cell only needs the row above to be two
+	 * columns ahead, so a thread per row can run one behind the previous one and still consume the exact same errors
+	 * in the exact same order as a sequential pass. Threads are plain platform threads because a worker spins waiting
+	 * on its predecessor, which would deadlock on a pool that runs fewer rows at once than there are workers.
+	 */
 	private fun matchDithered(pixels: IntArray, width: Int, height: Int, onProgress: (Float) -> Unit): IntArray {
 		val indices = IntArray(width * height)
 		val errors = FloatArray(width * height * 3)
+		val progress = AtomicIntegerArray(height)
+		val done = AtomicInteger()
+		val workers = minOf(WAVEFRONT_WORKERS, height)
 
-		for (y in 0..<height) {
-			for (x in 0..<width) {
-				val cell = y * width + x
-				val pixel = pixels[cell]
-				if (pixel ushr 24 < ALPHA_CUTOFF) {
-					indices[cell] = -1
-					continue
+		val threads = List(workers) { worker ->
+			Thread.ofPlatform().name("dither-$worker").start {
+				var y = worker
+				while (y < height) {
+					var x = 0
+					while (x < width) {
+						val end = minOf(x + WAVEFRONT_CHUNK, width)
+						/** The chunk reads the errors the row above pushes down from its column [end], one past the chunk. */
+						if (y > 0) {
+							val needed = minOf(width, end + 1)
+							while (progress.get(y - 1) < needed) Thread.onSpinWait()
+						}
+						ditherRow(pixels, indices, errors, width, height, y, x, end)
+						progress.set(y, end)
+						x = end
+					}
+					onProgress(done.incrementAndGet() / height.toFloat())
+					y += workers
 				}
-
-				val red = ((pixel shr 16 and 0xFF) + errors[cell * 3]).toInt().coerceIn(0, 255)
-				val green = ((pixel shr 8 and 0xFF) + errors[cell * 3 + 1]).toInt().coerceIn(0, 255)
-				val blue = ((pixel and 0xFF) + errors[cell * 3 + 2]).toInt().coerceIn(0, 255)
-
-				val index = palette.nearest(red, green, blue)
-				indices[cell] = index
-
-				val chosen = palette.texture(index).color
-				val deltaRed = (red - (chosen shr 16 and 0xFF)).toFloat()
-				val deltaGreen = (green - (chosen shr 8 and 0xFF)).toFloat()
-				val deltaBlue = (blue - (chosen and 0xFF)).toFloat()
-
-				diffuse(errors, width, height, x + 1, y, deltaRed, deltaGreen, deltaBlue, 7f / 16f)
-				diffuse(errors, width, height, x - 1, y + 1, deltaRed, deltaGreen, deltaBlue, 3f / 16f)
-				diffuse(errors, width, height, x, y + 1, deltaRed, deltaGreen, deltaBlue, 5f / 16f)
-				diffuse(errors, width, height, x + 1, y + 1, deltaRed, deltaGreen, deltaBlue, 1f / 16f)
 			}
-			onProgress((y + 1f) / height)
 		}
+		threads.forEach(Thread::join)
 		return indices
+	}
+
+	/** Columns [from] until [to] of one row, the sequential core of the dithering pass. */
+	private fun ditherRow(pixels: IntArray, indices: IntArray, errors: FloatArray, width: Int, height: Int, y: Int, from: Int, to: Int) {
+		for (x in from..<to) {
+			val cell = y * width + x
+			val pixel = pixels[cell]
+			if (pixel ushr 24 < ALPHA_CUTOFF) {
+				indices[cell] = -1
+				continue
+			}
+
+			val red = ((pixel shr 16 and 0xFF) + errors[cell * 3]).toInt().coerceIn(0, 255)
+			val green = ((pixel shr 8 and 0xFF) + errors[cell * 3 + 1]).toInt().coerceIn(0, 255)
+			val blue = ((pixel and 0xFF) + errors[cell * 3 + 2]).toInt().coerceIn(0, 255)
+
+			val index = palette.nearest(red, green, blue)
+			indices[cell] = index
+
+			val chosen = palette.texture(index).color
+			val deltaRed = (red - (chosen shr 16 and 0xFF)).toFloat()
+			val deltaGreen = (green - (chosen shr 8 and 0xFF)).toFloat()
+			val deltaBlue = (blue - (chosen and 0xFF)).toFloat()
+
+			diffuse(errors, width, height, x + 1, y, deltaRed, deltaGreen, deltaBlue, 7f / 16f)
+			diffuse(errors, width, height, x - 1, y + 1, deltaRed, deltaGreen, deltaBlue, 3f / 16f)
+			diffuse(errors, width, height, x, y + 1, deltaRed, deltaGreen, deltaBlue, 5f / 16f)
+			diffuse(errors, width, height, x + 1, y + 1, deltaRed, deltaGreen, deltaBlue, 1f / 16f)
+		}
 	}
 
 	private fun diffuse(errors: FloatArray, width: Int, height: Int, x: Int, y: Int, red: Float, green: Float, blue: Float, factor: Float) {
@@ -158,16 +197,15 @@ class Generator(private val palette: BlockPalette) {
 		val outputWidth = width * size
 		val output = IntArray(outputWidth * height * size)
 
-		IntStream.range(0, height).parallel().forEach { y ->
+		/** One task per output pixel row, so every copy of a row advances along [output] instead of jumping by a full row. */
+		IntStream.range(0, height * size).parallel().forEach { outputRow ->
+			val row = (outputRow % size) * size
+			var target = outputRow * outputWidth
+			val cell = (outputRow / size) * width
 			for (x in 0..<width) {
-				val index = indices[y * width + x]
-				if (index < 0) continue
-
-				val texture = palette.texture(index).pixels
-				for (row in 0..<size) {
-					val target = (y * size + row) * outputWidth + x * size
-					System.arraycopy(texture, row * size, output, target, size)
-				}
+				val index = indices[cell + x]
+				if (index >= 0) System.arraycopy(palette.texture(index).pixels, row, output, target, size)
+				target += size
 			}
 		}
 		return Bitmap(outputWidth, height * size, output)
@@ -175,5 +213,11 @@ class Generator(private val palette: BlockPalette) {
 
 	private companion object {
 		const val ALPHA_CUTOFF = 128
+
+		/** Columns a dithering worker runs before publishing its progress, one publication per column would thrash the cache line. */
+		const val WAVEFRONT_CHUNK = 32
+
+		/** A waiting worker spins rather than parking, so the wavefront needs spare cores or the rows it waits on get starved. */
+		val WAVEFRONT_WORKERS = (Runtime.getRuntime().availableProcessors() * 2 / 3).coerceAtLeast(1)
 	}
 }
