@@ -23,6 +23,15 @@ dependencies {
 	}
 }
 
+/** The benchmark lives outside `main` so it never ships in the jar, but it needs the app classes and their deps. */
+sourceSets.create("bench") {
+	compileClasspath += sourceSets.main.get().output
+	runtimeClasspath += sourceSets.main.get().output
+}
+
+configurations["benchImplementation"].extendsFrom(configurations.implementation.get())
+configurations["benchRuntimeOnly"].extendsFrom(configurations.runtimeOnly.get())
+
 kotlin {
 	jvmToolchain(25)
 
@@ -52,3 +61,11 @@ tasks.shadowJar {
 	duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
+
+/** Timings for the generation pipeline, `gradlew bench` after the app has extracted a palette at least once. */
+tasks.register<JavaExec>("bench") {
+	group = "verification"
+	mainClass = "io.github.ayfri.minecraft_art.bench.BenchmarkKt"
+	classpath = sourceSets["bench"].runtimeClasspath
+	jvmArgs("-XX:MaxRAMPercentage=70")
+}
