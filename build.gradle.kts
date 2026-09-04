@@ -34,13 +34,17 @@ kotlin {
 
 application {
 	mainClass = "io.github.ayfri.minecraft_art.MainKt"
+	/** The native file picker goes through the FFM API, which warns on every restricted call unless the module opts in. */
+	applicationDefaultJvmArgs = listOf("--enable-native-access=ALL-UNNAMED")
 }
 
 tasks.jar {
 	manifest.attributes["Implementation-Title"] = "Image2Minecraft"
+	manifest.attributes["Enable-Native-Access"] = "ALL-UNNAMED"
 }
 
 tasks.shadowJar {
 	/** Shadow merges the `.kotlin_module` metadata itself, so duplicates must reach its transformer instead of being dropped. */
 	duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
+

@@ -27,17 +27,30 @@ data object Platform {
 		return SwingUtilities.getWindowAncestor(component) as? Frame
 	}
 
-	/** Native picker, `FileDialog` maps to the Explorer dialog on Windows where a Swing chooser looks foreign. */
-	fun openImage(frame: Frame?, directory: File?) = dialog(frame, "Open an image", FileDialog.LOAD) {
-		it.directory = directory?.absolutePath
-		/** Windows reads this as a filter pattern, other platforms simply ignore it. */
-		it.file = IMAGE_EXTENSIONS.joinToString(";") { extension -> "*.$extension" }
-		it.setFilenameFilter { _, name -> name.substringAfterLast('.', "").lowercase() in IMAGE_EXTENSIONS }
+	private val IMAGE_PATTERN = IMAGE_EXTENSIONS.joinToString(";") { "*.$it" }
+	private val IMAGE_FILTERS = listOf(FileFilter("Images ($IMAGE_PATTERN)", IMAGE_PATTERN), FileFilter("All files", "*.*"))
+
+	/** Modern Explorer picker where it exists, [FileDialog] elsewhere, which is still the native dialog on macOS and Linux. */
+	fun openImage(frame: Frame?, directory: File?): File? {
+		if (WindowsFileDialog.available) return WindowsFileDialog.open("Open an image", directory, IMAGE_FILTERS)
+		return dialog(frame, "Open an image", FileDialog.LOAD) {
+			it.directory = directory?.absolutePath
+			/** Windows reads this as a filter pattern, other platforms simply ignore it. */
+			it.file = IMAGE_PATTERN
+			it.setFilenameFilter { _, name -> name.substringAfterLast('.', "").lowercase() in IMAGE_EXTENSIONS }
+		}
 	}
 
-	fun saveFile(frame: Frame?, directory: File?, defaultName: String) = dialog(frame, "Save as", FileDialog.SAVE) {
-		it.directory = directory?.absolutePath
-		it.file = defaultName
+	fun saveFile(frame: Frame?, directory: File?, defaultName: String): File? {
+		val extension = defaultName.substringAfterLast('.', "")
+		if (WindowsFileDialog.available) {
+			val filters = listOf(FileFilter("${extension.uppercase()} file (*.$extension)", "*.$extension"), FileFilter("All files", "*.*"))
+			return WindowsFileDialog.save("Save as", directory, defaultName, filters)
+		}
+		return dialog(frame, "Save as", FileDialog.SAVE) {
+			it.directory = directory?.absolutePath
+			it.file = defaultName
+		}
 	}
 
 	private fun dialog(frame: Frame?, title: String, mode: Int, configure: (FileDialog) -> Unit): File? {
