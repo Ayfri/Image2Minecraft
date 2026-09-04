@@ -125,16 +125,34 @@ class ImageView(private val emptyHint: String) : Widget() {
 		renderer.image(level, visible, source, smooth = scale < 1f)
 	}
 
-	/** The checkerboard is a tiny bitmap of one pixel per cell blown up by the renderer, so it costs a single draw. */
+	/**
+	 * The checkerboard is a tiny bitmap of one pixel per cell blown up by the renderer, so it costs a single draw. It
+	 * only covers the visible slice of [target], because a frame zoomed in on a large output spans thousands of cells.
+	 */
 	private fun checkerboard(renderer: Renderer, target: Rect) {
-		val columns = maxOf(1, (target.width / CHECKER_CELL).toInt() + 1)
-		val rows = maxOf(1, (target.height / CHECKER_CELL).toInt() + 1)
+		val area = bounds.inset(1f)
+		val left = maxOf(area.x, target.x)
+		val top = maxOf(area.y, target.y)
+		val right = minOf(area.right, target.right)
+		val bottom = minOf(area.bottom, target.bottom)
+		if (right <= left || bottom <= top) return
+
+		/** Cells stay locked to the frame origin instead of the viewport, otherwise the pattern would crawl while panning. */
+		val originX = target.x + floor((left - target.x) / CHECKER_CELL) * CHECKER_CELL
+		val originY = target.y + floor((top - target.y) / CHECKER_CELL) * CHECKER_CELL
+		val columns = ceil((right - originX) / CHECKER_CELL).toInt().coerceAtLeast(1)
+		val rows = ceil((bottom - originY) / CHECKER_CELL).toInt().coerceAtLeast(1)
+		val offsetX = ((originX - target.x) / CHECKER_CELL).toInt()
+		val offsetY = ((originY - target.y) / CHECKER_CELL).toInt()
+
 		val cached = checker
 		val pattern = if (cached != null && cached.width == columns && cached.height == rows) cached else {
-			Bitmap(columns, rows, IntArray(columns * rows) { if ((it / columns + it % columns) % 2 == 0) 0xFF15181E.toInt() else 0xFF1B1F27.toInt() })
-				.also { checker = it }
+			Bitmap(columns, rows, IntArray(columns * rows)).also { checker = it }
 		}
-		renderer.image(pattern, Rect(target.x, target.y, columns * CHECKER_CELL, rows * CHECKER_CELL), smooth = false)
+		for (index in pattern.pixels.indices) {
+			pattern.pixels[index] = if ((index / columns + offsetY + index % columns + offsetX) % 2 == 0) 0xFF15181E.toInt() else 0xFF1B1F27.toInt()
+		}
+		renderer.image(pattern, Rect(originX, originY, columns * CHECKER_CELL, rows * CHECKER_CELL), smooth = false)
 	}
 
 	private fun grid(renderer: Renderer, target: Rect, image: Bitmap) {
