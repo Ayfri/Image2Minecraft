@@ -392,7 +392,7 @@ class Main : PApplet() {
 			}
 
 			result = generated
-			outputView.bitmap = generated.preview
+			outputView.bitmap = generated.image
 			usageList.entries = usageEntries(generated)
 			status = "Done in ${generated.elapsed} - ${generated.blockCount} blocks, ${generated.usage.size} types"
 			toasts.show("Generated in ${generated.elapsed}", ToastKind.SUCCESS)

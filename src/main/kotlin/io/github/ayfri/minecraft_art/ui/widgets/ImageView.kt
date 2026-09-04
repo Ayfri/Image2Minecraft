@@ -11,6 +11,8 @@ import io.github.ayfri.minecraft_art.ui.Theme
 import io.github.ayfri.minecraft_art.ui.VerticalAlign
 import io.github.ayfri.minecraft_art.ui.Widget
 import io.github.ayfri.minecraft_art.ui.icon
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -82,8 +84,7 @@ class ImageView(private val emptyHint: String) : Widget() {
 		renderer.pushClip(area)
 		val target = frame(image)
 		checkerboard(renderer, target)
-		/** Pixel art must stay crisp once magnified, smoothing only helps when the image is shown smaller than 1:1. */
-		renderer.image(image, target, smooth = target.width < image.width)
+		draw(renderer, image, target)
 		if (showGrid && gridSize > 0) grid(renderer, target, image)
 		renderer.popClip()
 
@@ -91,6 +92,37 @@ class ImageView(private val emptyHint: String) : Widget() {
 		val badgeWidth = renderer.textWidth(badge, Theme.small) + 16f
 		renderer.fill(Rect(bounds.right - badgeWidth - 8f, bounds.bottom - 26f, badgeWidth, 18f), Theme.withAlpha(Theme.surface, 0.85f), 9f)
 		renderer.text(badge, bounds.right - 16f, bounds.bottom - 17f, Theme.small.copy(align = Align.RIGHT, baseline = VerticalAlign.MIDDLE))
+	}
+
+	/**
+	 * Draws only the visible part of the image, taken from the mip level matching the on-screen scale. A full block
+	 * output is tens of megapixels, so handing the whole thing to the backend every frame would resample far more
+	 * pixels than the pane can show, while the level choice keeps every block texture intact once zoomed in to 1:1.
+	 */
+	private fun draw(renderer: Renderer, image: Bitmap, target: Rect) {
+		val area = bounds.inset(1f)
+		val left = maxOf(area.x, target.x)
+		val top = maxOf(area.y, target.y)
+		val right = minOf(area.right, target.right)
+		val bottom = minOf(area.bottom, target.bottom)
+		if (right <= left || bottom <= top) return
+
+		val level = image.levelFor(target.width / image.width)
+		val scale = target.width / level.width
+		val sourceX = floor((left - target.x) / scale).toInt().coerceIn(0, level.width - 1)
+		val sourceY = floor((top - target.y) / scale).toInt().coerceIn(0, level.height - 1)
+		val sourceRight = ceil((right - target.x) / scale).toInt().coerceIn(sourceX + 1, level.width)
+		val sourceBottom = ceil((bottom - target.y) / scale).toInt().coerceIn(sourceY + 1, level.height)
+
+		val visible = Rect(
+			target.x + sourceX * scale,
+			target.y + sourceY * scale,
+			(sourceRight - sourceX) * scale,
+			(sourceBottom - sourceY) * scale,
+		)
+		val source = Rect(sourceX.toFloat(), sourceY.toFloat(), (sourceRight - sourceX).toFloat(), (sourceBottom - sourceY).toFloat())
+		/** Pixel art must stay crisp once magnified, smoothing only helps when the level is still shown smaller than 1:1. */
+		renderer.image(level, visible, source, smooth = scale < 1f)
 	}
 
 	/** The checkerboard is a tiny bitmap of one pixel per cell blown up by the renderer, so it costs a single draw. */

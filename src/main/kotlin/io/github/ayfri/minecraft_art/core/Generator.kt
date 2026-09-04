@@ -10,7 +10,6 @@ data class GenerationSettings(val blocksWide: Int, val dithering: Boolean)
 
 data class GenerationResult(
 	val image: Bitmap,
-	val preview: Bitmap,
 	val blocksWide: Int,
 	val blocksHigh: Int,
 	val usage: Map<String, Int>,
@@ -41,7 +40,7 @@ class Generator(private val palette: BlockPalette) {
 		indices.forEach { index -> if (index >= 0) usage.merge(palette.texture(index).name, 1, Int::plus) }
 
 		val image = compose(indices, width, height)
-		return GenerationResult(image, image.downscaled(PREVIEW_SIZE), width, height, usage, start.elapsedNow())
+		return GenerationResult(image, width, height, usage, start.elapsedNow())
 	}
 
 	/** Box filter downscale, averaging every source pixel of a cell gives a far better match than sampling one. */
@@ -159,6 +158,5 @@ class Generator(private val palette: BlockPalette) {
 
 	private companion object {
 		const val ALPHA_CUTOFF = 128
-		const val PREVIEW_SIZE = 1600
 	}
 }
