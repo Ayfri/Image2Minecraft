@@ -10,8 +10,6 @@ import processing.awt.PGraphicsJava2D
 import processing.core.PApplet
 import processing.core.PConstants
 import processing.core.PFont
-import processing.core.PImage
-import java.awt.RenderingHints
 
 /**
  * Processing implementation of [Renderer]. It is the only place in the UI layer aware of Processing types, so a
@@ -20,13 +18,7 @@ import java.awt.RenderingHints
 class ProcessingRenderer(private val sketch: PApplet) : Renderer {
 	private val regular: PFont = sketch.createFont(FONT_REGULAR, FONT_RESOLUTION, true)
 	private val bold: PFont = sketch.createFont(FONT_BOLD, FONT_RESOLUTION, true)
-	/**
-	 * Least recently used texture cache. [Bitmap] does not override `equals`, so the map already keys on identity, and
-	 * the bound matters because one full block output plus its mip levels holds hundreds of megabytes of pixels.
-	 */
-	private val textures = object : LinkedHashMap<Bitmap, CachedTexture>(16, 0.75f, true) {
-		override fun removeEldestEntry(eldest: Map.Entry<Bitmap, CachedTexture>) = size > TEXTURE_CACHE_LIMIT
-	}
+	private val blit = ScaledBlit()
 	private val clips = ArrayDeque<Rect>()
 
 	private val graphics get() = sketch.g
@@ -100,23 +92,14 @@ class ProcessingRenderer(private val sketch: PApplet) : Renderer {
 		return graphics.textWidth(value)
 	}
 
+	/**
+	 * Bitmaps never become `PImage`s: Processing keeps its own full size `BufferedImage` copy of every one it draws,
+	 * which doubles the hundreds of megabytes a dense output already holds, and then scales it single threaded.
+	 */
 	override fun image(bitmap: Bitmap, rect: Rect, source: Rect?, smooth: Boolean) {
-		val texture = textureOf(bitmap)
-		val interpolation = if (smooth) RenderingHints.VALUE_INTERPOLATION_BILINEAR else RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
-		val g2 = (graphics as? PGraphicsJava2D)?.g2
-		g2?.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interpolation)
-		if (source == null) graphics.image(texture, rect.x, rect.y, rect.width, rect.height)
-		else graphics.image(
-			texture,
-			rect.x,
-			rect.y,
-			rect.width,
-			rect.height,
-			source.x.toInt(),
-			source.y.toInt(),
-			source.right.toInt(),
-			source.bottom.toInt(),
-		)
+		val g2 = (graphics as? PGraphicsJava2D)?.g2 ?: return
+		val area = source ?: Rect(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
+		blit.draw(g2, bitmap, area, rect, clips.lastOrNull() ?: Rect(0f, 0f, width, height), smooth)
 	}
 
 	override fun pushClip(rect: Rect) {
@@ -153,23 +136,9 @@ class ProcessingRenderer(private val sketch: PApplet) : Renderer {
 		)
 	}
 
-	private fun textureOf(bitmap: Bitmap): PImage {
-		val cached = textures[bitmap]
-		if (cached != null && cached.revision == bitmap.revision) return cached.image
-
-		/** The `PImage` shares the bitmap array instead of copying it, which matters once an output reaches tens of megapixels. */
-		val image = PImage(bitmap.width, bitmap.height, bitmap.pixels, false, sketch, PConstants.ARGB, 1)
-		image.updatePixels()
-		textures[bitmap] = CachedTexture(image, bitmap.revision)
-		return image
-	}
-
-	private data class CachedTexture(val image: PImage, val revision: Int)
-
 	private companion object {
 		const val FONT_REGULAR = "Segoe UI"
 		const val FONT_BOLD = "Segoe UI Semibold"
 		const val FONT_RESOLUTION = 48f
-		const val TEXTURE_CACHE_LIMIT = 12
 	}
 }

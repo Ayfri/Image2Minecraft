@@ -8,17 +8,14 @@ import java.util.stream.IntStream
  * image loading, generation and export free of any toolkit type.
  */
 class Bitmap(val width: Int, val height: Int, val pixels: IntArray) {
-	/** Bumped whenever [pixels] changes, so a backend can tell its cached texture is stale. */
-	var revision = 0
-		private set
-
 	/** Half resolution copy, built the first time a view is zoomed out far enough to need it. */
+	@Volatile
 	private var half: Bitmap? = null
 
 	val aspectRatio get() = width.toFloat() / height.toFloat()
 
+	/** Drops the mip chain, so a caller that rewrote [pixels] does not keep showing stale levels when zoomed out. */
 	fun invalidate() {
-		revision++
 		half = null
 	}
 
