@@ -34,8 +34,12 @@ kotlin {
 
 application {
 	mainClass = "io.github.ayfri.minecraft_art.MainKt"
-	/** The native file picker goes through the FFM API, which warns on every restricted call unless the module opts in. */
-	applicationDefaultJvmArgs = listOf("--enable-native-access=ALL-UNNAMED")
+	applicationDefaultJvmArgs = listOf(
+		/** The native file picker goes through the FFM API, which warns on every restricted call unless the module opts in. */
+		"--enable-native-access=ALL-UNNAMED",
+		/** A dense output is hundreds of megabytes of pixels, and the default quarter of the machine's memory runs out early. */
+		"-XX:MaxRAMPercentage=70",
+	)
 }
 
 tasks.jar {

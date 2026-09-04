@@ -8,8 +8,20 @@ import kotlin.time.TimeSource
 
 data class GenerationSettings(val blocksWide: Int, val dithering: Boolean) {
 	companion object {
-		/** One generation of this width already holds a few hundred megabytes of pixels, so the UI never goes past it. */
-		const val MAX_BLOCKS_WIDE = 512
+		/** Blocks per side the UI offers at most. */
+		const val MAX_BLOCKS_SIDE = 4000
+
+		/** One 16x16 block texture, composed into the output as plain ARGB. */
+		private const val PIXELS_PER_BLOCK = 256L
+
+		/** The output array, its preview mip chain and the backend texture are all live at once while a result is shown. */
+		private const val BYTES_PER_BLOCK = PIXELS_PER_BLOCK * Int.SIZE_BYTES * 3
+
+		/**
+		 * Total blocks one generation may produce. [MAX_BLOCKS_SIDE] is not reachable on its own, a full square that
+		 * wide composes to 64000 x 64000 pixels and no `IntArray` can hold that many, so the heap sets the real bound.
+		 */
+		val MAX_BLOCKS = (Runtime.getRuntime().maxMemory() * 2 / 5 / BYTES_PER_BLOCK).toInt()
 	}
 }
 

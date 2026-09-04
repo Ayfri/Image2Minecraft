@@ -43,6 +43,7 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 class Main : PApplet() {
 	/** Preferences must be on disk before the widgets below read their initial value. */
@@ -274,15 +275,20 @@ class Main : PApplet() {
 		return "${current.blocksWide} x ${current.blocksHigh} blocks - ${current.image.width} x ${current.image.height} px"
 	}
 
-	/** Blocks across the current source at the chosen density, clamped so no setting can ask for an image that will not fit. */
-	private fun blocksWide(image: Bitmap) =
-		(image.width / densitySlider.value).roundToInt().coerceIn(1, GenerationSettings.MAX_BLOCKS_WIDE)
+	private fun requestedBlocks(image: Bitmap) =
+		(image.width / densitySlider.value).roundToInt().coerceIn(1, GenerationSettings.MAX_BLOCKS_SIDE)
+
+	/** Blocks across the current source, bounded by the heap as well since a full square of the maximum side never fits. */
+	private fun blocksWide(image: Bitmap): Int {
+		val affordable = sqrt(GenerationSettings.MAX_BLOCKS.toDouble() * image.aspectRatio).toInt()
+		return requestedBlocks(image).coerceAtMost(affordable.coerceAtLeast(1))
+	}
 
 	private fun shortcutsHint(): String {
 		val image = source ?: return "Ctrl+O open - Ctrl+G generate - Ctrl+S save - Ctrl+C copy"
 		val blocks = blocksWide(image)
 		val high = (blocks / image.aspectRatio).roundToInt().coerceAtLeast(1)
-		val capped = if (blocks == GenerationSettings.MAX_BLOCKS_WIDE) " (capped)" else ""
+		val capped = if (blocks < requestedBlocks(image)) " (capped)" else ""
 		return "$blocks x $high blocks$capped - ${blocks * BlockPalette.TEXTURE_SIZE} x ${high * BlockPalette.TEXTURE_SIZE} px"
 	}
 
