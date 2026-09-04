@@ -35,6 +35,14 @@ class Bitmap(val width: Int, val height: Int, val pixels: IntArray) {
 		return level.levelFor(scale * 2f)
 	}
 
+	/**
+	 * Builds every level up front. A full chain over a hundred megapixel output takes a fifth of a second, which is a
+	 * visible stall on the draw thread, so a generation or a load pays for it on its worker instead.
+	 */
+	fun buildLevels() {
+		levelFor(0f)
+	}
+
 	/** Box filtered 2x2 downscale, averaging in premultiplied alpha so transparent pixels do not bleed their colour in. */
 	private fun halved(): Bitmap {
 		val targetWidth = maxOf(1, width / 2)

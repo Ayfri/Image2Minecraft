@@ -369,6 +369,7 @@ class Main : PApplet() {
 	}
 
 	private fun setSource(bitmap: Bitmap, name: String, details: String) {
+		bitmap.buildLevels()
 		source = bitmap
 		sourceName = name
 		sourceInfo = "${bitmap.width} x ${bitmap.height} px - $details"
@@ -401,6 +402,8 @@ class Main : PApplet() {
 				return@submit
 			}
 
+			status = "Preparing the preview"
+			generated.image.buildLevels()
 			result = generated
 			outputView.bitmap = generated.image
 			usageList.entries = usageEntries(generated)
